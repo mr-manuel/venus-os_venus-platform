@@ -108,6 +108,8 @@ static bool dataPartionError()
 
 int VeQItemReboot::setValue(const QVariant &value)
 {
+	Q_UNUSED(value);
+
 	qDebug() << "[VeQItemReboot] Queuing a reboot";
 
 	QTimer *timer = new QTimer(this);
@@ -116,7 +118,7 @@ int VeQItemReboot::setValue(const QVariant &value)
 	connect(timer, SIGNAL(timeout()), timer, SLOT(deleteLater())); // a bit silly, rebooting anyway..
 	timer->start(2000);
 
-	return VeQItemAction::setValue(value);
+	return VeQItemQuantity::setValue(1);
 }
 
 void VeQItemReboot::doReboot()
@@ -131,6 +133,45 @@ void VeQItemReboot::doReboot()
 	 * @note this only works if init accepts SIGINT.
 	 */
 	kill(1, SIGINT);
+}
+
+static void cleanDir(const QString &dirName)
+{
+	QDir dir(dirName);
+
+	if (dir.exists(dirName)) {
+		for (QFileInfo &info: dir.entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System)) {
+			if (info.isDir()) {
+				cleanDir(info.absoluteFilePath());
+				dir.rmdir(info.fileName());
+			} else {
+				QFile::remove(info.absoluteFilePath());
+			}
+		}
+	}
+}
+
+VeQItemNodeRedReset::VeQItemNodeRedReset(DaemonToolsService *nodeRed, VeQItem *nodeRedMode) :
+	mNodeRed(nodeRed),
+	mNodeRedMode(nodeRedMode)
+{
+}
+
+int VeQItemNodeRedReset::setValue(const QVariant &value)
+{
+	if (value.toInt() == 1) {
+		qDebug() << "Resetting Node Red";
+
+		mNodeRedMode->setValue(0);
+		mNodeRed->stop();
+		mNodeRed->waitTillDown();
+
+		cleanDir("/data/home/nodered/.cache");
+		cleanDir("/data/home/nodered/.node-red");
+		cleanDir("/data/home/nodered/.npm");
+	}
+
+	return VeQItemAction::setValue(value);
 }
 
 enum Mk3Update {
@@ -287,13 +328,29 @@ void Application::onDemoSettingChanged(QVariant var)
 	}
 }
 
-void Application::onRunningGuiVersionObtained(const QVariant &var)
+void Application::setRunningGui(QVariant version)
+{
+	if (version != mRunningGui) {
+		mRunningGui = version;
+		mRunningGuiItem->produceValue(version);
+		emit runningGuiVersionChanged();
+	}
+}
+
+void Application::onRunningGuiVersionObtained(QVariant var)
 {
 	if (mRunningGui != var) {
+		// switch the index page of the webserver as well
+		if (mRunningGui.isValid() && var.isValid())
+			system("/etc/venus/www.d/create-gui-redirect.sh");
+
+		if (var.isValid() && (!QFile("/opt/victronenergy/gui-v2/venus-gui-v2").exists() || !QFile("/dev/fb0").exists()))
+			var = 1;
+
 		if (mRunningGui.isValid() && var.isValid())
 			mGuiSwitcher->restart();
-		mRunningGui = var;
-		emit runningGuiVersionChanged();
+
+		setRunningGui(var);
 	}
 }
 
@@ -378,9 +435,11 @@ void Application::initDaemonStartupConditions(VeQItem *service)
 
 void Application::manageDaemontoolsServices()
 {
+	mRunningGuiItem = mService->itemGetOrCreate("Gui/RunningVersion");
+
 	// Is gui-v1 the only option
 	if (QDir("/service/gui").exists()) {
-		mRunningGui = 1;
+		setRunningGui(1);
 
 	// or if configurable, is it running?
 	} else {
@@ -415,9 +474,11 @@ void Application::manageDaemontoolsServices()
 	// Large image services
 	if (serviceExists("node-red-venus")) {
 		QList<int> start = QList<int>() << 1 << 2;
-		new DaemonToolsService(mSettings, "/service/node-red-venus", "Settings/Services/NodeRed", start, this);
+		mNodeRed = new DaemonToolsService(mSettings, "/service/node-red-venus", "Settings/Services/NodeRed", start, this);
 		VeQItemProxy::addProxy(mService->itemGetOrCreate("Services/NodeRed"), "Mode",
 							   mSettings->root()->itemGetOrCreate("Settings/Services/NodeRed"));
+		VeQItemNodeRedReset *reset = new VeQItemNodeRedReset(mNodeRed, mService->itemGet("Services/NodeRed/Mode"));
+		mService->itemGetOrCreate("Services/NodeRed")->itemAddChild("FactoryReset", reset);
 	}
 
 	if (serviceExists("signalk-server")) {
@@ -527,6 +588,14 @@ void Application::loadTranslation()
 		qCritical() << "Failed to load translation file: " << qmFile;
 }
 
+void Application::createItemsForFlashmq()
+{
+	mService->itemGetOrCreate("/Mqtt/Bridges/GXdbus/Connected");
+	mService->itemGetOrCreate("/Mqtt/Bridges/GXdbus/ConnectionStatus");
+	mService->itemGetOrCreate("/Mqtt/Bridges/GXrpc/Connected");
+	mService->itemGetOrCreate("/Mqtt/Bridges/GXrpc/ConnectionStatus");
+}
+
 void Application::start()
 {
 	// The items exported to the dbus..
@@ -536,6 +605,8 @@ void Application::start()
 	mService->itemGetOrCreateAndProduce("ProductName", "Venus");
 
 	manageDaemontoolsServices();
+
+	createItemsForFlashmq();
 
 	mCanInterfaceMonitor = new CanInterfaceMonitor(mSettings, mService, this);
 	connect(mCanInterfaceMonitor, SIGNAL(interfacesChanged()), SLOT(onCanInterfacesChanged()));

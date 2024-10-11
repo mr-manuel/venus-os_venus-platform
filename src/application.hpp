@@ -33,6 +33,18 @@ private slots:
 	void doReboot();
 };
 
+class VeQItemNodeRedReset : public VeQItemAction {
+	Q_OBJECT
+
+public:
+	VeQItemNodeRedReset(DaemonToolsService *nodeRed, VeQItem *nodeRedMode);
+	int setValue(const QVariant &value) override;
+
+private:
+	DaemonToolsService *mNodeRed;
+	VeQItem *mNodeRedMode;
+};
+
 class Application : public QCoreApplication
 {
 	Q_OBJECT
@@ -66,13 +78,14 @@ protected slots:
 	void onLocalSettingsStateChanged(VeQItem::State state);
 	void onLocalSettingsTimeout();
 	void onMk3UpdateAllowedChanged(QVariant var);
-	void onRunningGuiVersionObtained(QVariant const &var);
+	void onRunningGuiVersionObtained(QVariant var);
 	void onRelaySettingChanged(QVariant var);
 	void onServiceAdded(VeQItem *var);
 	void onGensetStateChanged(VeQItem::State state);
 	void onBatteryProductIdChanged(QVariant var);
 
 private:
+	void createItemsForFlashmq();
 	void manageDaemontoolsServices();
 	void loadTranslation();
 	void initDaemonStartupConditions(VeQItem *service);
@@ -80,6 +93,7 @@ private:
 	void manageParallelBms();
 	void init();
 	void start();
+	void setRunningGui(QVariant version);
 
 	VeQItemSettings *mSettings;
 	VeQItem *mServices;
@@ -105,6 +119,7 @@ private:
 
 	DaemonToolsService *mGuiSwitcher = nullptr;
 	static QVariant mRunningGui;
+	VeQItem *mRunningGuiItem;
 
 	DaemonToolsService *mGeneratorStarter = nullptr;
 	DaemonToolsService *mParallelBmsStarter = nullptr;
@@ -113,4 +128,5 @@ private:
 	QList<QString> mGeneratorStarterConditions;
 	QList<QString> mParallelBmsConditions;
 
+	DaemonToolsService *mNodeRed = nullptr;
 };
