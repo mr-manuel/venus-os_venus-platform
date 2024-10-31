@@ -678,6 +678,10 @@ void Application::start()
 	mFsModifiedCheck->getValueAndChanges(this, SLOT(onFsModifiedChanged(QVariant)));
 	mService->itemGetOrCreateAndProduce("Troubleshoot/FsModified/Status", QVariant());
 
+	// Force Reinstall
+	mForceFirmwareReinstall = mService->itemGetOrCreateAndProduce("Troubleshoot/ForceFirmwareReinstall", 0);
+	mForceFirmwareReinstall->getValueAndChanges(this, SLOT(onForceFirmwareReinstall(QVariant)));
+
 	// Scan for dbus services
 	mVenusServices->initialScan();
 
@@ -801,13 +805,13 @@ void Application::onTroubleshootChanged(QVariant var)
 		// enable /data/rc.local if it exists
 		if (QFile::exists("/data/rc.local.disabled")) {
 			QFile::rename("/data/rc.local.disabled", "/data/rc.local");
-			qDebug() << "enabled /data/rc.local";
+			qDebug() << "[Troubleshoot] enabled /data/rc.local";
 		}
 
 		// enalbe /data/rcS.local if it exists
 		if (QFile::exists("/data/rcS.local.disabled")) {
 			QFile::rename("/data/rcS.local.disabled", "/data/rcS.local");
-			qDebug() << "enabled /data/rcS.local";
+			qDebug() << "[Troubleshoot] enabled /data/rcS.local";
 		}
 
 	}
@@ -838,6 +842,24 @@ void Application::onFsModifiedChanged(QVariant var)
 
 		mFsModifiedCheck->setValue(0);
 
+	}
+}
+
+void Application::onForceFirmwareReinstall(QVariant var)
+{
+	if (!var.isValid())
+		return;
+
+	if (var.toBool()) {
+		qDebug() << "[Troubleshoot] force firmware reinstall";
+
+		// run "/usr/sbin/force-firmware-reinstall" and save the result
+		QProcess *process = new QProcess(this);
+		process->start("/opt/victronenergy/swupdate-scripts/check-updates.sh", QStringList() << "-update" << "-force");
+		process->setProcessChannelMode(QProcess::ForwardedChannels);
+		// Application::spawn("/opt/victronenergy/swupdate-scripts/check-updates.sh", QStringList() << "-update" << "-force");
+
+		mForceFirmwareReinstall->setValue(0);
 	}
 }
 
