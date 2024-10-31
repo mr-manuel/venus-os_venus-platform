@@ -234,6 +234,9 @@ public:
 		add("System/LogLevel", 2, 0, 0);
 		add("System/ReleaseType", 0, 0, 3);
 		add("System/TimeZone", "/UTC");
+		add("System/Troubleshoot/Enabled", 0, 0, 1);
+		add("System/Troubleshoot/PreviousState/NodeRed", 0, 0, 1);
+		add("System/Troubleshoot/PreviousState/SignalK", 0, 0, 1);
 		add("System/Units/Temperature", "");
 		add("System/VolumeUnit", 0, 0, 0);
 		add("SystemSetup/SystemName", "");
@@ -527,6 +530,10 @@ void Application::manageDaemontoolsServices()
 		VeQItem *item =	mSettings->root()->itemGetOrCreate("Settings/Services/Evcc");
 		item->getValueAndChanges(this, SLOT(onEvccSettingChanged(QVariant)));
 	}
+
+	// Troubleshoot
+	item = mSettings->root()->itemGetOrCreate("Settings/System/Troubleshoot/Enabled");
+	item->getValueAndChanges(this, SLOT(onTroubleshootChanged(QVariant)));
 }
 
 void Application::init()
@@ -730,6 +737,74 @@ void Application::onEvccSettingChanged(QVariant var)
 			system("svc -d /service/evcc");
 			QFile::remove("/service/evcc");
 		}
+	}
+}
+
+void Application::onTroubleshootChanged(QVariant var)
+{
+	if (!var.isValid())
+		return;
+
+	if (var.toBool()) {
+
+		// disable all third party integrations
+		qDebug() << "[Troubleshoot] mode enabled";
+
+		// set Settings/Services/NodeRed to 0 and save previous state
+		if (serviceExists("node-red-venus") && mSettings->root()->itemGet("Settings/Services/NodeRed")->getValue().toInt() == 1) {
+			qDebug() << "[Troubleshoot] Node-RED is enabled, save state and disable it";
+			mSettings->root()->itemGet("Settings/Services/NodeRed")->setValue(0);
+			mSettings->root()->itemGet("Settings/System/Troubleshoot/PreviousState/NodeRed")->setValue(1);
+		}
+
+		// set Settings/Services/SignalK to 0 and save previous state
+		if (serviceExists("signalk-server") && mSettings->root()->itemGet("Settings/Services/SignalK")->getValue().toInt() == 1) {
+			qDebug() << "[Troubleshoot] SignalK was enabled, save state and disable it";
+			mSettings->root()->itemGet("Settings/Services/SignalK")->setValue(0);
+			mSettings->root()->itemGet("Settings/System/Troubleshoot/PreviousState/SignalK")->setValue(1);
+		}
+
+		// disable /data/rc.local if it exists
+		if (QFile::exists("/data/rc.local")) {
+			qDebug() << "[Troubleshoot] disabled /data/rc.local";
+			QFile::rename("/data/rc.local", "/data/rc.local.disabled");
+		}
+
+		// disable /data/rcS.local if it exists
+		if (QFile::exists("/data/rcS.local")) {
+			qDebug() << "[Troubleshoot] disabled /data/rcS.local";
+			QFile::rename("/data/rcS.local", "/data/rcS.local.disabled");
+		}
+
+	} else {
+
+		qDebug() << "[Troubleshoot] mode disabled";
+
+		// recover previous service states
+		if (serviceExists("node-red-venus") && mSettings->root()->itemGet("Settings/System/Troubleshoot/PreviousState/NodeRed")->getValue().toInt() == 1) {
+			qDebug() << "[Troubleshoot] Node-RED was enabled, restore state";
+			mSettings->root()->itemGet("Settings/Services/NodeRed")->setValue(1);
+			mSettings->root()->itemGet("Settings/System/Troubleshoot/PreviousState/NodeRed")->setValue(0);
+		}
+
+		if (serviceExists("signalk-server") && mSettings->root()->itemGet("Settings/System/Troubleshoot/PreviousState/SignalK")->getValue().toInt() == 1) {
+			qDebug() << "[Troubleshoot] SignalK was enabled, restore state";
+			mSettings->root()->itemGet("Settings/Services/SignalK")->setValue(1);
+			mSettings->root()->itemGet("Settings/System/Troubleshoot/PreviousState/SignalK")->setValue(0);
+		}
+
+		// enable /data/rc.local if it exists
+		if (QFile::exists("/data/rc.local.disabled")) {
+			QFile::rename("/data/rc.local.disabled", "/data/rc.local");
+			qDebug() << "enabled /data/rc.local";
+		}
+
+		// enalbe /data/rcS.local if it exists
+		if (QFile::exists("/data/rcS.local.disabled")) {
+			QFile::rename("/data/rcS.local.disabled", "/data/rcS.local");
+			qDebug() << "enabled /data/rcS.local";
+		}
+
 	}
 }
 

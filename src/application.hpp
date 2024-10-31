@@ -73,6 +73,7 @@ protected slots:
 	void onCanInterfacesChanged();
 	void onDemoSettingChanged(QVariant var);
 	void onEvccSettingChanged(QVariant var);
+	void onTroubleshootChanged(QVariant var);
 	void onLanguageChanged(QVariant var);
 	void onLocalSettingsStateChanged(VeQItem::State state);
 	void onLocalSettingsTimeout();
