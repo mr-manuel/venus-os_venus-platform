@@ -84,6 +84,7 @@ protected slots:
 	void onGensetStateChanged(VeQItem::State state);
 	void onBatteryProductIdChanged(QVariant var);
 	void onFsModifiedChanged(QVariant var);
+	void onForceFirmwareReinstall(QVariant var);
 
 private:
 	void createItemsForFlashmq();
@@ -117,6 +118,7 @@ private:
 	VeQItem *mAudibleAlarm;
 	VeQItem *mAlarm;
 	VeQItem *mFsModifiedCheck;
+	VeQItem *mForceFirmwareReinstall;
 	Relay *mRelay;
 
 	DaemonToolsService *mGuiSwitcher = nullptr;
