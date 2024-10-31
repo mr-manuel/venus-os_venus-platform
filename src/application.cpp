@@ -647,6 +647,11 @@ void Application::start()
 	proc->waitForFinished();
 	mService->itemGetOrCreateAndProduce("Device/UniqueId", QString(proc->readAllStandardOutput().trimmed()));
 
+	QProcess *procSerial = new QProcess(this);
+	procSerial->start("cat /data/venus/serial-number");
+	procSerial->waitForFinished();
+	mService->itemGetOrCreateAndProduce("Device/HQSerialNumber", QString(procSerial->readAllStandardOutput().trimmed()));
+
 	int error = dataPartionError() ? 1 : 0;
 	mService->itemGetOrCreateAndProduce("Device/DataPartitionError", error);
 
