@@ -673,6 +673,11 @@ void Application::start()
 
 	mRelay = new Relay("dbus/com.victronenergy.system/Relay/0/State", mNotifications, this);
 
+	// FsModified
+	mFsModifiedCheck = mService->itemGetOrCreateAndProduce("Troubleshoot/FsModified/Check", 0);
+	mFsModifiedCheck->getValueAndChanges(this, SLOT(onFsModifiedChanged(QVariant)));
+	mService->itemGetOrCreateAndProduce("Troubleshoot/FsModified/Status", QVariant());
+
 	// Scan for dbus services
 	mVenusServices->initialScan();
 
@@ -804,6 +809,34 @@ void Application::onTroubleshootChanged(QVariant var)
 			QFile::rename("/data/rcS.local.disabled", "/data/rcS.local");
 			qDebug() << "enabled /data/rcS.local";
 		}
+
+	}
+}
+
+void Application::onFsModifiedChanged(QVariant var)
+{
+	if (!var.isValid())
+		return;
+
+	if (var.toBool()) {
+
+		// disable all third party integrations
+		qDebug() << "[Troubleshoot] check if fs was modified";
+
+		// run "/usr/sbin/fsmodified /" and save the result
+		QProcess process;
+		process.start("/usr/sbin/fsmodified", QStringList() << "/");
+		process.waitForFinished();
+		QString result = process.readAllStandardOutput().trimmed();
+		qDebug() << "[Troubleshoot] fsmodified result:" << result;
+
+		if (result == "clean") {
+			mService->itemGet("Troubleshoot/FsModified/Status")->setValue(0);
+		} else {
+			mService->itemGet("Troubleshoot/FsModified/Status")->setValue(1);
+		}
+
+		mFsModifiedCheck->setValue(0);
 
 	}
 }
