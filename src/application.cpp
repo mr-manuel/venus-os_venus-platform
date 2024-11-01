@@ -855,6 +855,11 @@ void Application::onSystemIntegrityStartCheckChanged(QVariant var)
 			systemHooksState += 2;
 		}
 
+		if (QFile::exists("/run/venus/custom-rc")) {
+			qDebug() << "[System Integrity] /run/venus/custom-rc present";
+			systemHooksState += 4;
+		}
+
 		mService->itemGet("SystemIntegrity/SystemHooksState")->setValue(systemHooksState);
 
 		mSystemIntegrityStartCheck->setValue(0);
