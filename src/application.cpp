@@ -234,9 +234,9 @@ public:
 		add("System/LogLevel", 2, 0, 0);
 		add("System/ReleaseType", 0, 0, 3);
 		add("System/TimeZone", "/UTC");
-		add("System/Troubleshoot/Enabled", 0, 0, 1);
-		add("System/Troubleshoot/PreviousState/NodeRed", 0, 0, 1);
-		add("System/Troubleshoot/PreviousState/SignalK", 0, 0, 1);
+		add("System/SystemIntegrity/AllModificationsDisabled", 0, 0, 1);
+		add("System/SystemIntegrity/PreviousState/NodeRed", 0, 0, 1);
+		add("System/SystemIntegrity/PreviousState/SignalK", 0, 0, 1);
 		add("System/Units/Temperature", "");
 		add("System/VolumeUnit", 0, 0, 0);
 		add("SystemSetup/SystemName", "");
@@ -531,9 +531,9 @@ void Application::manageDaemontoolsServices()
 		item->getValueAndChanges(this, SLOT(onEvccSettingChanged(QVariant)));
 	}
 
-	// Troubleshoot
-	item = mSettings->root()->itemGetOrCreate("Settings/System/Troubleshoot/Enabled");
-	item->getValueAndChanges(this, SLOT(onTroubleshootChanged(QVariant)));
+	// System integrity
+	item = mSettings->root()->itemGetOrCreate("Settings/System/SystemIntegrity/AllModificationsDisabled");
+	item->getValueAndChanges(this, SLOT(onAllModificationsDisabledChanged(QVariant)));
 }
 
 void Application::init()
@@ -679,15 +679,15 @@ void Application::start()
 	mRelay = new Relay("dbus/com.victronenergy.system/Relay/0/State", mNotifications, this);
 
 	// FsModified
-	mFsModifiedCheck = mService->itemGetOrCreateAndProduce("Troubleshoot/FsModified/Check", 0);
-	mFsModifiedCheck->getValueAndChanges(this, SLOT(onFsModifiedChanged(QVariant)));
-	mService->itemGetOrCreateAndProduce("Troubleshoot/FsModified/Status", QVariant());
+	mSystemIntegrityStartCheck = mService->itemGetOrCreateAndProduce("SystemIntegrity/StartCheck", 0);
+	mSystemIntegrityStartCheck->getValueAndChanges(this, SLOT(onSystemIntegrityStartCheckChanged(QVariant)));
+	mService->itemGetOrCreateAndProduce("SystemIntegrity/FsModifiedState", QVariant());
 	mService->itemGetOrCreateAndProduce("SystemIntegrity/SystemHooksState", QVariant());
 	// execute the check once
-	onFsModifiedChanged(QVariant(1));
+	onSystemIntegrityStartCheckChanged(QVariant(1));
 
 	// Force Reinstall
-	mForceFirmwareReinstall = mService->itemGetOrCreateAndProduce("Troubleshoot/ForceFirmwareReinstall", 0);
+	mForceFirmwareReinstall = mService->itemGetOrCreateAndProduce("SystemIntegrity/ForceFirmwareReinstall", 0);
 	mForceFirmwareReinstall->getValueAndChanges(this, SLOT(onForceFirmwareReinstall(QVariant)));
 
 	// Scan for dbus services
@@ -757,7 +757,7 @@ void Application::onEvccSettingChanged(QVariant var)
 	}
 }
 
-void Application::onTroubleshootChanged(QVariant var)
+void Application::onAllModificationsDisabledChanged(QVariant var)
 {
 	if (!var.isValid())
 		return;
@@ -765,105 +765,99 @@ void Application::onTroubleshootChanged(QVariant var)
 	if (var.toBool()) {
 
 		// disable all third party integrations
-		qDebug() << "[Troubleshoot] mode enabled";
-
 		// set Settings/Services/NodeRed to 0 and save previous state
 		if (serviceExists("node-red-venus") && mSettings->root()->itemGet("Settings/Services/NodeRed")->getValue().toInt() == 1) {
-			qDebug() << "[Troubleshoot] Node-RED is enabled, save state and disable it";
+			qDebug() << "[System Integrity] Node-RED is enabled, save state and disable it";
 			mSettings->root()->itemGet("Settings/Services/NodeRed")->setValue(0);
-			mSettings->root()->itemGet("Settings/System/Troubleshoot/PreviousState/NodeRed")->setValue(1);
+			mSettings->root()->itemGet("Settings/System/SystemIntegrity/PreviousState/NodeRed")->setValue(1);
 		}
 
 		// set Settings/Services/SignalK to 0 and save previous state
 		if (serviceExists("signalk-server") && mSettings->root()->itemGet("Settings/Services/SignalK")->getValue().toInt() == 1) {
-			qDebug() << "[Troubleshoot] SignalK was enabled, save state and disable it";
+			qDebug() << "[System Integrity] SignalK was enabled, save state and disable it";
 			mSettings->root()->itemGet("Settings/Services/SignalK")->setValue(0);
-			mSettings->root()->itemGet("Settings/System/Troubleshoot/PreviousState/SignalK")->setValue(1);
+			mSettings->root()->itemGet("Settings/System/SystemIntegrity/PreviousState/SignalK")->setValue(1);
 		}
 
 		// disable /data/rc.local if it exists
 		if (QFile::exists("/data/rc.local")) {
-			qDebug() << "[Troubleshoot] disabled /data/rc.local";
+			qDebug() << "[System Integrity] disabled /data/rc.local";
 			QFile::rename("/data/rc.local", "/data/rc.local.disabled");
 		}
 
 		// disable /data/rcS.local if it exists
 		if (QFile::exists("/data/rcS.local")) {
-			qDebug() << "[Troubleshoot] disabled /data/rcS.local";
+			qDebug() << "[System Integrity] disabled /data/rcS.local";
 			QFile::rename("/data/rcS.local", "/data/rcS.local.disabled");
 		}
 
 	} else {
 
-		qDebug() << "[Troubleshoot] mode disabled";
-
 		// recover previous service states
-		if (serviceExists("node-red-venus") && mSettings->root()->itemGet("Settings/System/Troubleshoot/PreviousState/NodeRed")->getValue().toInt() == 1) {
-			qDebug() << "[Troubleshoot] Node-RED was enabled, restore state";
+		if (serviceExists("node-red-venus") && mSettings->root()->itemGet("Settings/System/SystemIntegrity/PreviousState/NodeRed")->getValue().toInt() == 1) {
+			qDebug() << "[System Integrity] Node-RED was enabled, restore state";
 			mSettings->root()->itemGet("Settings/Services/NodeRed")->setValue(1);
-			mSettings->root()->itemGet("Settings/System/Troubleshoot/PreviousState/NodeRed")->setValue(0);
+			mSettings->root()->itemGet("Settings/System/SystemIntegrity/PreviousState/NodeRed")->setValue(0);
 		}
 
-		if (serviceExists("signalk-server") && mSettings->root()->itemGet("Settings/System/Troubleshoot/PreviousState/SignalK")->getValue().toInt() == 1) {
-			qDebug() << "[Troubleshoot] SignalK was enabled, restore state";
+		// recover previous service states
+		if (serviceExists("signalk-server") && mSettings->root()->itemGet("Settings/System/SystemIntegrity/PreviousState/SignalK")->getValue().toInt() == 1) {
+			qDebug() << "[System Integrity] SignalK was enabled, restore state";
 			mSettings->root()->itemGet("Settings/Services/SignalK")->setValue(1);
-			mSettings->root()->itemGet("Settings/System/Troubleshoot/PreviousState/SignalK")->setValue(0);
+			mSettings->root()->itemGet("Settings/System/SystemIntegrity/PreviousState/SignalK")->setValue(0);
 		}
 
 		// enable /data/rc.local if it exists
 		if (QFile::exists("/data/rc.local.disabled")) {
+			qDebug() << "[System Integrity] enabled /data/rc.local";
 			QFile::rename("/data/rc.local.disabled", "/data/rc.local");
-			qDebug() << "[Troubleshoot] enabled /data/rc.local";
 		}
 
 		// enalbe /data/rcS.local if it exists
 		if (QFile::exists("/data/rcS.local.disabled")) {
+			qDebug() << "[System Integrity] enabled /data/rcS.local";
 			QFile::rename("/data/rcS.local.disabled", "/data/rcS.local");
-			qDebug() << "[Troubleshoot] enabled /data/rcS.local";
 		}
 
 	}
 }
 
-void Application::onFsModifiedChanged(QVariant var)
+void Application::onSystemIntegrityStartCheckChanged(QVariant var)
 {
 	if (!var.isValid())
 		return;
 
 	if (var.toBool()) {
-
-		// disable all third party integrations
-		qDebug() << "[Troubleshoot] check if fs was modified";
 
 		// run "/usr/sbin/fsmodified /" and save the result
 		QProcess process;
 		process.start("/usr/sbin/fsmodified", QStringList() << "/");
 		process.waitForFinished();
 		QString result = process.readAllStandardOutput().trimmed();
-		qDebug() << "[Troubleshoot] fsmodified result:" << result;
+		qDebug() << "[System Integrity] fsmodified result:" << result;
 
 		if (result == "clean") {
-			mService->itemGet("Troubleshoot/FsModified/Status")->setValue(0);
+			mService->itemGet("SystemIntegrity/FsModifiedState")->setValue(0);
 		} else {
-			mService->itemGet("Troubleshoot/FsModified/Status")->setValue(1);
+			mService->itemGet("SystemIntegrity/FsModifiedState")->setValue(1);
 		}
 
 		// create variable to check if multiple files are present
 		int systemHooksState = 0;
 
 		if (QFile::exists("/data/rc.local")) {
-			qDebug() << "[Troubleshoot] /data/rc.local present";
+			qDebug() << "[System Integrity] /data/rc.local present";
 			systemHooksState += 1;
 		}
 
 		if (QFile::exists("/data/rcS.local")) {
-			qDebug() << "[Troubleshoot] /data/rcS.local present";
+			qDebug() << "[System Integrity] /data/rcS.local present";
 			systemHooksState += 2;
 		}
 
 		mService->itemGet("SystemIntegrity/SystemHooksState")->setValue(systemHooksState);
 
-		mFsModifiedCheck->setValue(0);
+		mSystemIntegrityStartCheck->setValue(0);
 
 	}
 }
@@ -874,13 +868,12 @@ void Application::onForceFirmwareReinstall(QVariant var)
 		return;
 
 	if (var.toBool()) {
-		qDebug() << "[Troubleshoot] force firmware reinstall";
+		qDebug() << "[System Integrity] force firmware reinstall";
 
 		// run "/usr/sbin/force-firmware-reinstall" and save the result
 		QProcess *process = new QProcess(this);
 		process->start("/opt/victronenergy/swupdate-scripts/check-updates.sh", QStringList() << "-update" << "-force");
 		process->setProcessChannelMode(QProcess::ForwardedChannels);
-		// Application::spawn("/opt/victronenergy/swupdate-scripts/check-updates.sh", QStringList() << "-update" << "-force");
 
 		mForceFirmwareReinstall->setValue(0);
 	}
