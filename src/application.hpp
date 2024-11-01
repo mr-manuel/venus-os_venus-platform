@@ -73,7 +73,7 @@ protected slots:
 	void onCanInterfacesChanged();
 	void onDemoSettingChanged(QVariant var);
 	void onEvccSettingChanged(QVariant var);
-	void onTroubleshootChanged(QVariant var);
+	void onAllModificationsDisabledChanged(QVariant var);
 	void onLanguageChanged(QVariant var);
 	void onLocalSettingsStateChanged(VeQItem::State state);
 	void onLocalSettingsTimeout();
@@ -83,7 +83,7 @@ protected slots:
 	void onServiceAdded(VeQItem *var);
 	void onGensetStateChanged(VeQItem::State state);
 	void onBatteryProductIdChanged(QVariant var);
-	void onFsModifiedChanged(QVariant var);
+	void onSystemIntegrityStartCheckChanged(QVariant var);
 	void onForceFirmwareReinstall(QVariant var);
 
 private:
@@ -117,7 +117,7 @@ private:
 	AlarmBusitems *mAlarmBusitems;
 	VeQItem *mAudibleAlarm;
 	VeQItem *mAlarm;
-	VeQItem *mFsModifiedCheck;
+	VeQItem *mSystemIntegrityStartCheck;
 	VeQItem *mForceFirmwareReinstall;
 	Relay *mRelay;
 
