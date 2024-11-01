@@ -682,6 +682,9 @@ void Application::start()
 	mFsModifiedCheck = mService->itemGetOrCreateAndProduce("Troubleshoot/FsModified/Check", 0);
 	mFsModifiedCheck->getValueAndChanges(this, SLOT(onFsModifiedChanged(QVariant)));
 	mService->itemGetOrCreateAndProduce("Troubleshoot/FsModified/Status", QVariant());
+	mService->itemGetOrCreateAndProduce("SystemIntegrity/SystemHooksState", QVariant());
+	// execute the check once
+	onFsModifiedChanged(QVariant(1));
 
 	// Force Reinstall
 	mForceFirmwareReinstall = mService->itemGetOrCreateAndProduce("Troubleshoot/ForceFirmwareReinstall", 0);
@@ -844,6 +847,21 @@ void Application::onFsModifiedChanged(QVariant var)
 		} else {
 			mService->itemGet("Troubleshoot/FsModified/Status")->setValue(1);
 		}
+
+		// create variable to check if multiple files are present
+		int systemHooksState = 0;
+
+		if (QFile::exists("/data/rc.local")) {
+			qDebug() << "[Troubleshoot] /data/rc.local present";
+			systemHooksState += 1;
+		}
+
+		if (QFile::exists("/data/rcS.local")) {
+			qDebug() << "[Troubleshoot] /data/rcS.local present";
+			systemHooksState += 2;
+		}
+
+		mService->itemGet("SystemIntegrity/SystemHooksState")->setValue(systemHooksState);
 
 		mFsModifiedCheck->setValue(0);
 
