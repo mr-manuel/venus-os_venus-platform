@@ -686,6 +686,7 @@ void Application::start()
 	// FsModified
 	mSystemIntegrityStartCheck = mService->itemGetOrCreateAndProduce("SystemIntegrity/StartCheck", 0);
 	mSystemIntegrityStartCheck->getValueAndChanges(this, SLOT(onSystemIntegrityStartCheckChanged(QVariant)));
+	mService->itemGetOrCreateAndProduce("SystemIntegrity/DataPartitionFreeSpace", QVariant());
 	mService->itemGetOrCreateAndProduce("SystemIntegrity/FsModifiedState", QVariant());
 	mService->itemGetOrCreateAndProduce("SystemIntegrity/SystemHooksState", QVariant());
 	mService->itemGetOrCreateAndProduce("SystemIntegrity/SshKeyForRootPresent", QVariant());
@@ -834,6 +835,14 @@ void Application::onSystemIntegrityStartCheckChanged(QVariant var)
 		return;
 
 	if (var.toBool()) {
+
+		// check data partition free space
+		QProcess processFreeSpace;
+		processFreeSpace.start("sh", QStringList() << "-c" << "df -B1 /data | awk 'NR==2 {print $4}'");
+		processFreeSpace.waitForFinished();
+		QString freeSpace = processFreeSpace.readAllStandardOutput().trimmed();
+		qDebug() << "[System Integrity] data partition free space:" << freeSpace;
+		mService->itemGet("SystemIntegrity/DataPartitionFreeSpace")->setValue(freeSpace);
 
 		// run "/usr/sbin/fsmodified /" and save the result
 		QProcess process;
