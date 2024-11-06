@@ -683,6 +683,7 @@ void Application::start()
 	mSystemIntegrityStartCheck->getValueAndChanges(this, SLOT(onSystemIntegrityStartCheckChanged(QVariant)));
 	mService->itemGetOrCreateAndProduce("SystemIntegrity/FsModifiedState", QVariant());
 	mService->itemGetOrCreateAndProduce("SystemIntegrity/SystemHooksState", QVariant());
+	mService->itemGetOrCreateAndProduce("SystemIntegrity/SshKeyForRootPresent", QVariant());
 	// execute the check once
 	onSystemIntegrityStartCheckChanged(QVariant(1));
 
@@ -844,23 +845,28 @@ void Application::onSystemIntegrityStartCheckChanged(QVariant var)
 
 		// create variable to check if multiple files are present
 		int systemHooksState = 0;
-
 		if (QFile::exists("/data/rc.local")) {
 			qDebug() << "[System Integrity] /data/rc.local present";
 			systemHooksState += 1;
 		}
-
 		if (QFile::exists("/data/rcS.local")) {
 			qDebug() << "[System Integrity] /data/rcS.local present";
 			systemHooksState += 2;
 		}
-
 		if (QFile::exists("/run/venus/custom-rc")) {
 			qDebug() << "[System Integrity] /run/venus/custom-rc present";
 			systemHooksState += 4;
 		}
-
 		mService->itemGet("SystemIntegrity/SystemHooksState")->setValue(systemHooksState);
+
+		// Check if ssh key for root is present
+		if (QFile::exists("/data/home/root/.ssh/authorized_keys")) {
+			qDebug() << "[System Integrity] ssh key for root is present";
+			mService->itemGet("SystemIntegrity/SshKeyForRootPresent")->setValue(1);
+		} else {
+			qDebug() << "[System Integrity] ssh key for root is not present";
+			mService->itemGet("SystemIntegrity/SshKeyForRootPresent")->setValue(0);
+		}
 
 		mSystemIntegrityStartCheck->setValue(0);
 
