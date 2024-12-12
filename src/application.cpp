@@ -789,12 +789,20 @@ void Application::onAllModificationsDisabledChanged(QVariant var)
 		// disable /data/rc.local if it exists
 		if (QFile::exists("/data/rc.local")) {
 			qDebug() << "[System Integrity] disabled /data/rc.local";
+			// remove an existing file else rename will fail
+			if (QFile::exists("/data/rc.local.disabled")) {
+				QFile::remove("/data/rc.local.disabled");
+			}
 			QFile::rename("/data/rc.local", "/data/rc.local.disabled");
 		}
 
 		// disable /data/rcS.local if it exists
 		if (QFile::exists("/data/rcS.local")) {
 			qDebug() << "[System Integrity] disabled /data/rcS.local";
+			// remove an existing file else rename will fail
+			if (QFile::exists("/data/rcS.local.disabled")) {
+				QFile::remove("/data/rcS.local.disabled");
+			}
 			QFile::rename("/data/rcS.local", "/data/rcS.local.disabled");
 		}
 
@@ -816,14 +824,22 @@ void Application::onAllModificationsDisabledChanged(QVariant var)
 
 		// enable /data/rc.local if it exists
 		if (QFile::exists("/data/rc.local.disabled")) {
-			qDebug() << "[System Integrity] enabled /data/rc.local";
-			QFile::rename("/data/rc.local.disabled", "/data/rc.local");
+			if (!QFile::exists("/data/rc.local")) {
+				qDebug() << "[System Integrity] enabled /data/rc.local";
+				QFile::rename("/data/rc.local.disabled", "/data/rc.local");
+			} else {
+				qDebug() << "[System Integrity] /data/rc.local already exists, not enabling";
+			}
 		}
 
 		// enalbe /data/rcS.local if it exists
 		if (QFile::exists("/data/rcS.local.disabled")) {
-			qDebug() << "[System Integrity] enabled /data/rcS.local";
-			QFile::rename("/data/rcS.local.disabled", "/data/rcS.local");
+			if (!QFile::exists("/data/rcS.local")) {
+				qDebug() << "[System Integrity] enabled /data/rcS.local";
+				QFile::rename("/data/rcS.local.disabled", "/data/rcS.local");
+			} else {
+				qDebug() << "[System Integrity] /data/rcS.local already exists, not enabling";
+			}
 		}
 
 	}
