@@ -298,27 +298,39 @@ BatteryAlarms::BatteryAlarms(VenusService *service, Notifications *notications) 
 	mNrOfDistributors = service->item("/NrOfDistributors");
 	mNrOfDistributors->getValueAndChanges(this, SLOT(numberOfDistributorsChanged(QVariant)));
 
-	addTripplet(tr("Low voltage"),						"/Alarms/LowVoltage",							nullptr,		"");
-	addTripplet(tr("High voltage"),						"/Alarms/HighVoltage",							nullptr,		"");
-	addTripplet(tr("High cell voltage"),				"/Alarms/HighCellVoltage",						nullptr,		"");
-	addTripplet(tr("High current"),						"/Alarms/HighCurrent",							nullptr,		"");
-	addTripplet(tr("High charge current"),				"/Alarms/HighChargeCurrent",					nullptr,		"");
-	addTripplet(tr("High discharge current"),			"/Alarms/HighDischargeCurrent",					nullptr,		"");
+	/*
+	For /Alarms/HighChargeTemperature and /Alarms/HighTemperature check if /Dc/0/Temperature or /System/MaxCellTemperature is higher. If /System/MaxCellTemperature is higher, then also /System/MaxTemperatureCellId could be displayed.
+	For /Alarms/LowChargeTemperature and /Alarms/LowTemperature check if /Dc/0/Temperature or /System/MinCellTemperature is lower. If /System/MinCellTemperature is lower, then also /System/MinTemperatureCellId could be displayed.
+
+	For /Alarms/HighCellVoltage the value /System/MaxCellVoltage can be displayed and if available also /System/MaxVoltageCellId.
+	For /Alarms/LowCellVoltage the value /System/MinCellVoltage can be displayed and if available also /System/MinVoltageCellId.
+
+	For /Alarms/LowFusedVoltage and /Alarms/HighFusedVoltage I unfortunately don't know which value would be the correct one.
+
+	For /Alarms/CellImbalance the difference between /System/MaxCellVoltage and /System/MinCellVoltage could be displayed, but this could also be looked up in the VRM portal graphs.
+	*/
+
+	addTripplet(tr("Low voltage"),						"/Alarms/LowVoltage",							nullptr,		"/Dc/0/Voltage");
+	addTripplet(tr("High voltage"),						"/Alarms/HighVoltage",							nullptr,		"/Dc/0/Voltage");
+	addTripplet(tr("High cell voltage"),				"/Alarms/HighCellVoltage",						nullptr,		"/System/MaxCellVoltage");
+	addTripplet(tr("High current"),						"/Alarms/HighCurrent",							nullptr,		"/Dc/0/Current");
+	addTripplet(tr("High charge current"),				"/Alarms/HighChargeCurrent",					nullptr,		"/Dc/0/Current");
+	addTripplet(tr("High discharge current"),			"/Alarms/HighDischargeCurrent",					nullptr,		"/Dc/0/Current");
 	addTripplet(tr("High charge temperature"),			"/Alarms/HighChargeTemperature",				nullptr,		"/Dc/0/Temperature");
 	addTripplet(tr("Low charge temperature"),			"/Alarms/LowChargeTemperature",					nullptr,		"/Dc/0/Temperature");
 	addTripplet(tr("Low SOC"),							"/Alarms/LowSoc",								nullptr,		"/Soc");
 	addTripplet(tr("State of health"),					"/Alarms/StateOfHealth",						nullptr,		"/Soh");
-	addTripplet(tr("Low starter voltage"),				"/Alarms/LowStarterVoltage",					nullptr,		"");
-	addTripplet(tr("High starter voltage"),				"/Alarms/HighStarterVoltage",					nullptr,		"");
+	addTripplet(tr("Low starter voltage"),				"/Alarms/LowStarterVoltage",					nullptr,		"/Dc/1/Voltage");
+	addTripplet(tr("High starter voltage"),				"/Alarms/HighStarterVoltage",					nullptr,		"/Dc/1/Voltage");
 	addTripplet(tr("Low temperature"),					"/Alarms/LowTemperature",						nullptr,		"/Dc/0/Temperature");
 	addTripplet(tr("High Temperature"),					"/Alarms/HighTemperature",						nullptr,		"/Dc/0/Temperature");
-	addTripplet(tr("Mid-point voltage"),				"/Alarms/MidVoltage",							nullptr,		"");
+	addTripplet(tr("Mid-point voltage"),				"/Alarms/MidVoltage",							nullptr,		"/Dc/0/MidVoltage");
 	addTripplet(tr("Low-fused voltage"),				"/Alarms/LowFusedVoltage",						nullptr,		"");
 	addTripplet(tr("High-fused voltage"),				"/Alarms/HighFusedVoltage",						nullptr,		"");
 	addTripplet(tr("Fuse blown"),						"/Alarms/FuseBlown",							nullptr,		"");
 	addTripplet(tr("High internal temperature"),		"/Alarms/HighInternalTemperature",				nullptr,		"");
 	addTripplet(tr("Internal failure"),					"/Alarms/InternalFailure",						nullptr,		"");
-	addTripplet(tr("Battery temperature sensor"),		"/Alarms/BatteryTemperatureSensor",				nullptr,"");
+	addTripplet(tr("Battery temperature sensor"),		"/Alarms/BatteryTemperatureSensor",				nullptr,		"");
 	addTripplet(tr("Cell imbalance"),					"/Alarms/CellImbalance",						nullptr,		"");
 	addTripplet(tr("Low cell voltage"),					"/Alarms/LowCellVoltage",						nullptr,		"/System/MinCellVoltage");
 	addTripplet(tr("Bad contactor"),					"/Alarms/Contactor",							nullptr,		"");
